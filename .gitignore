@@ -1,0 +1,12 @@
+# ignore any folder named venv anywhere
+venv/
+
+# ignore all env folders
+*env/
+
+# ignore hidden env files
+.env
+.venv
+env
+venv
+.env.example

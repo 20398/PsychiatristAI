@@ -1,0 +1,33 @@
+langchain
+langchain-community
+langchain-openai
+openai
+faiss-cpu
+sentence-transformers
+python-dotenv
+fastapi
+uvicorn
+
+# Database
+sqlalchemy>=2.0
+asyncpg
+
+# LLM & Embeddings
+google-generativeai
+
+# Authentication
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# Utilities
+pydantic
+pydantic-settings
+
+# Development
+alembic
+pytest
+pytest-asyncio
+
+# Optional: Monitoring & Logging
+python-json-logger
