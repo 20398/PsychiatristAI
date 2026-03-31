@@ -4,14 +4,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.getElementById('chat-messages');
     const sendButton = document.getElementById('send-button');
     const typingIndicator = document.getElementById('typing-indicator');
+    const authCheck = document.getElementById('auth-check');
+    const chatInterface = document.getElementById('chat-interface');
+    const inputArea = document.getElementById('input-area');
+    const userGreeting = document.getElementById('user-greeting');
+    const welcomeMessage = document.getElementById('welcome-message');
     
     // Generate a unique session ID for this page load
     const sessionId = 'sess_' + Math.random().toString(36).substring(2, 9);
+
+    // Check authentication on page load
+    checkAuthentication();
 
     // Auto-scroll to bottom
     const scrollToBottom = () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     };
+
+    // Check authentication status
+    async function checkAuthentication() {
+        const token = localStorage.getItem('auth_token');
+        
+        if (!token) {
+            // No token, redirect to login
+            window.location.href = '/';
+            return;
+        }
+
+        try {
+            // Verify token with server
+            const response = await fetch('/auth/verify', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                // Authentication successful, show chat interface
+                showChatInterface(userData.user);
+            } else {
+                // Token invalid, redirect to login
+                localStorage.removeItem('auth_token');
+                window.location.href = '/';
+            }
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            localStorage.removeItem('auth_token');
+            window.location.href = '/';
+        }
+    }
+
+    // Show chat interface after successful authentication
+    function showChatInterface(user) {
+        authCheck.style.display = 'none';
+        chatInterface.style.display = 'block';
+        inputArea.style.display = 'block';
+        
+        // Update greeting
+        userGreeting.textContent = `Welcome, ${user.first_name}`;
+        welcomeMessage.textContent = `Hello ${user.first_name}! I'm your therapy assistant. How are you feeling today?`;
+    }
 
     // Enable/disable send button
     userInput.addEventListener('input', () => {
@@ -37,8 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Very basic markdown formatting for bold and code blocks
         let formattedContent = content
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/```([\s\S]*?)```/g, '<pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; margin-top: 8px; overflow-x: auto;"><code>$1</code></pre>')
-            .replace(/`([^`]+)`/g, '<code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 4px;">$1</code>')
+            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
             .replace(/\n/g, '<br>');
             
         contentDiv.innerHTML = formattedContent;
@@ -71,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const token = localStorage.getItem('auth_token');
-            const response = await fetch('/chat', {
+            const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -80,16 +133,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ query: query, session_id: sessionId })
             });
 
-            const data = await response.json();
+            const contentType = response.headers.get('content-type') || '';
+            const data = contentType.includes('application/json')
+                ? await response.json()
+                : { detail: await response.text() };
             
             // Hide typing indicator
             typingIndicator.style.display = 'none';
 
             if (response.ok) {
-                // Add assistant message
                 const assistantMessage = createMessageElement(data.answer, 'assistant');
                 chatMessages.appendChild(assistantMessage);
             } else {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('auth_token');
+                    window.location.href = '/';
+                    return;
+                }
                 throw new Error(data.detail || 'Failed to get response');
             }
         } catch (error) {

@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import func
 from datetime import datetime, timedelta
 import time
 import secrets
@@ -80,7 +81,8 @@ async def get_current_user(token: str = Depends(security), db: AsyncSession = De
 
 async def get_current_user_profile(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))
-    profile = result.scalars().first()
+    profile = result.scalar_one_or_none()
+    
     if not profile:
         profile = UserProfile(user_id=user.id)
         db.add(profile)
@@ -249,7 +251,7 @@ async def landing_page():
     """
 
 @app.get("/chat", response_class=HTMLResponse)
-async def chat_page(current_user: User = Depends(get_current_user)):
+async def chat_page():
     return f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -267,27 +269,36 @@ async def chat_page(current_user: User = Depends(get_current_user)):
                     <h1>Therapy Chat</h1>
                 </div>
                 <div class="user-info">
-                    <span>Welcome, {current_user.first_name}</span>
+                    <span id="user-greeting">Loading...</span>
                     <button onclick="logout()" class="btn-logout">Logout</button>
                 </div>
             </header>
 
             <main class="chat-container">
-                <div id="chat-messages" class="chat-messages">
-                    <div class="message assistant-message initial-message">
-                        <div class="avatar assistant-avatar">T</div>
-                        <div class="message-content">
-                            Hello {current_user.first_name}! I'm your therapy assistant. How are you feeling today?
-                        </div>
+                <div id="auth-check" class="auth-check">
+                    <div class="auth-message">
+                        <h3>Checking authentication...</h3>
+                        <div class="spinner"></div>
                     </div>
                 </div>
                 
-                <div class="typing-indicator" id="typing-indicator" style="display: none;">
-                    <span></span><span></span><span></span>
+                <div id="chat-interface" class="chat-interface" style="display: none;">
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="message assistant-message initial-message">
+                            <div class="avatar assistant-avatar">T</div>
+                            <div class="message-content">
+                                <span id="welcome-message">Hello! I'm your therapy assistant. How are you feeling today?</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="typing-indicator" id="typing-indicator" style="display: none;">
+                        <span></span><span></span><span></span>
+                    </div>
                 </div>
             </main>
 
-            <footer class="input-area">
+            <footer class="input-area" id="input-area" style="display: none;">
                 <form id="chat-form">
                     <div class="input-wrapper">
                         <input type="text" id="user-input" placeholder="Share what's on your mind..." autocomplete="off">
@@ -307,9 +318,10 @@ async def chat_page(current_user: User = Depends(get_current_user)):
     """
 
 # ============================================================================
-# CHAT ENDPOINT
+# CHAT API ENDPOINTS
 # ============================================================================
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, include_in_schema=False)
 async def chat_endpoint(
     request: ChatRequest, 
     user_profile: UserProfile = Depends(get_current_user_profile),
@@ -447,9 +459,10 @@ async def chat_endpoint(
         
         # ========== STEP 9: Update User Profile Statistics ==========
         user.total_messages += 2  # User message + assistant response
-        user.total_sessions = len((await db.execute(
-            select(ShortTermMemory).where(ShortTermMemory.user_profile_id == user.id)
-        )).scalars().all())
+        session_count_result = await db.execute(
+            select(func.count(ShortTermMemory.id)).where(ShortTermMemory.user_profile_id == user.id)
+        )
+        user.total_sessions = session_count_result.scalar() or 0
         user.last_session_at = datetime.utcnow()
         db.add(user)
         await db.commit()
@@ -460,10 +473,10 @@ async def chat_endpoint(
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error processing chat: {str(e)}")
 
-@app.get("/", response_class=HTMLResponse)
-async def get_index():
-    index_path = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    return HTMLResponse(content="<h1>Index HTML not found. Please create app/static/index.html</h1>")
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "ok",
+        "service": "therapy-chat-api",
+        "timestamp": datetime.utcnow().isoformat()
+    }

@@ -42,6 +42,9 @@ async def create_tables():
 async def verify_tables():
     """Verify that all tables were created"""
     expected_tables = [
+        "users",
+        "genders",
+        "sessions",
         "user_profiles",
         "short_term_memory",
         "session_log",
@@ -88,15 +91,15 @@ async def create_indexes():
             """))
             await conn.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_short_term_memory_user_id 
-                ON short_term_memory(user_id);
+                ON short_term_memory(user_profile_id);
             """))
             await conn.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_crisis_event_user_id 
-                ON crisis_event(user_id);
+                ON crisis_event(user_profile_id);
             """))
             await conn.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_session_log_user_id 
-                ON session_log(user_id);
+                ON session_log(user_profile_id);
             """))
             print("✅ Indexes created successfully")
             return True

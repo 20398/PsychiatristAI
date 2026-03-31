@@ -52,8 +52,12 @@ CREATE TABLE IF NOT EXISTS sessions (
 -- Rename user_id to user_profile_id in related tables and update references
 -- Note: This migration assumes existing data; in production, you'd need data migration
 
--- Add user_id_fk to user_profiles
-ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS user_id INT REFERENCES users(id) ON DELETE CASCADE;
+-- Clean up the old VARCHAR user_id and replace it with the INT foreign key
+ALTER TABLE user_profiles DROP COLUMN IF EXISTS user_id;
+ALTER TABLE user_profiles ADD COLUMN user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE;
+
+-- Add a unique constraint to ensure one profile per user
+ALTER TABLE user_profiles ADD CONSTRAINT user_profiles_user_id_key UNIQUE (user_id);
 
 -- Remove old fields from user_profiles that are now in users
 ALTER TABLE user_profiles DROP COLUMN IF EXISTS first_name;
@@ -62,15 +66,15 @@ ALTER TABLE user_profiles DROP COLUMN IF EXISTS email;
 
 -- Update foreign key references in other tables
 -- ShortTermMemory
-ALTER TABLE short_term_memory RENAME COLUMN user_id TO user_profile_id;
+-- ALTER TABLE short_term_memory RENAME COLUMN user_id TO user_profile_id;
 -- SessionLog
-ALTER TABLE session_log RENAME COLUMN user_id TO user_profile_id;
+-- ALTER TABLE session_log RENAME COLUMN user_id TO user_profile_id;
 -- CrisisEvent
-ALTER TABLE crisis_event RENAME COLUMN user_id TO user_profile_id;
+-- ALTER TABLE crisis_event RENAME COLUMN user_id TO user_profile_id;
 -- UserFeedback
-ALTER TABLE user_feedback RENAME COLUMN user_id TO user_profile_id;
+-- ALTER TABLE user_feedback RENAME COLUMN user_id TO user_profile_id;
 -- ConversationMetrics
-ALTER TABLE conversation_metrics RENAME COLUMN user_id TO user_profile_id;
+-- ALTER TABLE conversation_metrics RENAME COLUMN user_id TO user_profile_id;
 
 -- ============================================================================
 -- INDEXES

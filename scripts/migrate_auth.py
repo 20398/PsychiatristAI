@@ -6,6 +6,7 @@ Run this to apply authentication schema changes
 
 import asyncio
 import os
+import re
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
@@ -24,8 +25,16 @@ async def run_migration():
             migration_sql = f.read()
 
         # Execute the entire migration as one command
-        print("Executing authentication migration...")
-        await conn.execute(text(migration_sql))
+        print("Executing authentication migration statements...")
+        
+        # Remove single-line comments to avoid issues with semicolons inside them
+        clean_sql = re.sub(r'--.*', '', migration_sql)
+        
+        # Split by semicolon and execute each statement
+        for statement in clean_sql.split(';'):
+            cleaned_stmt = statement.strip()
+            if cleaned_stmt:
+                await conn.execute(text(cleaned_stmt))
 
     print("✅ Authentication migration completed successfully!")
 
