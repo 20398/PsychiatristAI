@@ -27,7 +27,8 @@ strategy_prompt = ChatPromptTemplate.from_messages([
     ("system", """Given the user's emotional state: {emotion}, intent: {intent}, and current conversation stage: {stage}.
 Select the most appropriate conversational strategy from this exact list:
 [reflect, probe, reassure, reframe, suggest, ground]
-Return ONLY the exact strategy name as a single word.""")
+Return ONLY the exact strategy name as a single word."""),
+    ("human", "Select the strategy based on the emotional state and intent provided.")
 ])
 
 # 3. Response Generator Prompt
