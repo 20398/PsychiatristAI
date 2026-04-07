@@ -20,4 +20,4 @@ COPY . /app
 EXPOSE 8000
 
 # Default startup command
-CMD ["python", "app/main.py"]
+CMD ["python", "-m", "app.main"]
