@@ -1,0 +1,35 @@
+name: Build and Deploy to OKE
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Login to GHCR
+      run: echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build Docker image
+      run: |
+        docker build --platform linux/amd64 \
+        -t ghcr.io/${{ github.repository }}/app:latest .
+
+    - name: Push Docker image
+      run: docker push ghcr.io/${{ github.repository }}/app:latest
+
+    - name: Setup kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
+
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+        kubectl rollout restart deployment my-app
