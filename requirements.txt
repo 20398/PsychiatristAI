@@ -4,8 +4,8 @@ langchain-openai
 langchain-text-splitters
 langchain-google-genai
 openai
-faiss-cpu
-sentence-transformers
+#faiss-cpu
+#sentence-transformers
 python-dotenv
 fastapi
 uvicorn
