@@ -23,10 +23,26 @@ jobs:
     - name: Push Docker image
       run: docker push ghcr.io/${{ github.repository }}/app:latest
 
-    - name: Setup kubeconfig
+    - name: Install OCI CLI
       run: |
-        mkdir -p $HOME/.kube
-        echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
+        curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
+        echo "$HOME/bin" >> $GITHUB_PATH
+    
+    - name: Setup OCI config
+      run: |
+        mkdir -p ~/.oci
+        echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
+        echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oci_api_key.pem
+        chmod 600 ~/.oci/oci_api_key.pem
+   
+    - name: Generate kubeconfig
+      run: |
+        oci ce cluster create-kubeconfig \
+          --cluster-id ocid1.cluster.oc1.iad.aaaaaaaawcpndqtlquuvyg3hfa32xiwknkunv34nk7wbgnms5cx6go5xuu3q \
+          --file $HOME/.kube/config \
+          --region us-ashburn-1 \
+          --token-version 2.0.0 \
+          --kube-endpoint PUBLIC_ENDPOINT
 
     - name: Deploy to Kubernetes
       run: |
