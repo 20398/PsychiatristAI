@@ -16,6 +16,6 @@ spec:
       - name: ghcr-secret
       containers:
       - name: my-app
-        image: ghcr.io/20398/app:latest
+        image: ghcr.io/20398/psychiatristai/app:latest
         ports:
         - containerPort: 80
